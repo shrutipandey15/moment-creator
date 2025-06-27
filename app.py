@@ -14,8 +14,8 @@ load_dotenv()
 # --- Configuration ---
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your_super_secret_key_change_this_later'
-app.config['UPLOAD_FOLDER'] = 'uploads'
-app.config['MOMENTS_FOLDER'] = 'moments'
+app.config['UPLOAD_FOLDER'] = '/tmp/uploads'
+app.config['MOMENTS_FOLDER'] = '/tmp/moments'
 app.config['APP_BASE_URL'] = os.getenv('PUBLIC_URL', 'http://127.0.0.1:5000')
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
