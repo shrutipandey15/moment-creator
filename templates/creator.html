@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Create a Moment</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    {% include '_doodles.html' %}
+    <div class="main-container">
+        <header class="header">
+            <h1 class="title">Create a Moment</h1>
+            <h2 class="subtitle">Bring your words and sounds to life.</h2>
+        </header>
+        
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="flash-message" style="background: #ffcdd2; color: #c62828; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                    {{ messages[0] }}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <form action="/create" method="post" enctype="multipart/form-data" class="moment-form">
+            <div class="form-step">
+                <label for="title">Title of Poem or Song</label>
+                <input type="text" id="title" name="title" required placeholder="This will be displayed on the player">
+            </div>
+
+            <div class="form-step">
+                 <label for="youtube_url">Audio Source: YouTube Link OR Upload</label>
+                 <input type="text" name="youtube_url" placeholder="Paste a YouTube URL here...">
+            </div>
+            
+            <div class="form-step">
+                 <input type="file" name="audio_file" accept="audio/*">
+            </div>
+
+            <div class="form-step">
+                <label for="lyrics_text">The Full Text / Lyrics</label>
+                <textarea name="lyrics_text" rows="10" placeholder="Pasting lyrics here is the best way to guarantee a match..."></textarea>
+            </div>
+            <button type="submit" class="submit-btn">Create My Moment</button>
+        </form>
+    </div>
+</body>
+</html>

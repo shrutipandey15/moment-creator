@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ moment_data.title }}</title>
+    
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    {% include '_doodles.html' %}
+    <audio id="poemAudio" style="display: none;">
+        <source src="{{ url_for('serve_audio', filename=moment_data.audio_filename) }}" type="audio/mpeg">
+    </audio>
+    
+    <div class="main-container">
+        <header class="header">
+            <h1 class="title">{{ moment_data.title }}</h1>
+            <h2 class="subtitle" id="personal-message-display"></h2>
+        </header>
+
+        <main class="poem-text">
+            </main>
+
+        <div class="selection-info" id="selection-info">
+            <span id="selection-count">0 lines selected</span> • Click lines to select, then share
+        </div>
+
+        <footer class="player-container">
+            <button type="button" class="play-pause-btn" id="playPauseBtn"><svg id="playIcon" width="24" height="24" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg><svg id="pauseIcon" width="24" height="24" viewBox="0 0 24 24" style="display: none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg></button>
+            <div id="currentTime" class="time-display">0:00</div>
+            <div class="progress-rail" id="progressRail"><div class="progress-fill" id="progressFill"></div></div>
+            <div id="duration" class="time-display">0:00</div>
+            <button type="button" class="clear-selection-btn" id="clearSelectionBtn" title="Clear Selection"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg></button>
+            <button type="button" class="share-btn" id="shareBtn"><svg width="24" height="24" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"></path></svg></button>
+        </footer>
+    </div>
+    
+    <div class="modal-overlay" id="share-modal">
+        <div class="modal-content">
+             <button type="button" id="close-modal-btn" style="position: absolute; top: 10px; right: 15px; font-size: 2rem; background: none; border: none; color: var(--text-color); cursor: pointer;">&times;</button>
+             <h3 style="font-size: 2rem; margin-bottom: 1rem;">Share Selected Lines</h3>
+             <div class="shared-lines-preview" id="shared-lines-preview"></div>
+             <label for="share-message">Add a personal message:</label>
+             <input type="text" id="share-message" placeholder="This made me think of you..." style="width: 100%; padding: 0.5rem; margin-top: 0.25rem; margin-bottom: 1rem; border-radius: 4px; border: 1px solid var(--border-color);">
+             <button type="button" id="generate-share-link-btn" style="width: 100%; padding: 0.75rem; border: none; border-radius: 8px; background: var(--text-color); color: white; font-weight: bold; cursor: pointer;">Generate Link</button>
+             <input type="text" id="final-link" readonly style="width: 100%; margin-top: 1rem; padding: 0.5rem; font-family: monospace;">
+        </div>
+    </div>
+
+    <div class="moment-popup" id="moment-popup">
+        <div class="moment-popup-content">
+            <div class="message" id="popup-message"></div>
+            <div class="lyric" id="popup-lyric"></div>
+            <div class="dismiss-prompt">(Click anywhere to continue)</div>
+        </div>
+    </div>
+
+   <script>
+        const momentData = {{ moment_data | tojson | safe }};
+        const appBaseUrl = {{ base_url | tojson | safe }};
+
+        class PoemPlayer {
+            constructor() {
+                this.poemData = momentData;
+                this.audioElement = document.getElementById('poemAudio');
+                this.playPauseBtn = document.getElementById('playPauseBtn');
+                this.playIcon = document.getElementById('playIcon');
+                this.pauseIcon = document.getElementById('pauseIcon');
+                this.progressRail = document.getElementById('progressRail');
+                this.progressFill = document.getElementById('progressFill');
+                this.currentTimeEl = document.getElementById('currentTime');
+                this.durationEl = document.getElementById('duration');
+                this.poemTextContainer = document.querySelector('.poem-text');
+                this.poemLines = [];
+                this.currentLineIndex = -1;
+                this.selectedLines = new Set();
+                this.shareBtn = document.getElementById('shareBtn');
+                this.clearSelectionBtn = document.getElementById('clearSelectionBtn');
+                this.shareModal = document.getElementById('share-modal');
+                this.closeModalBtn = document.getElementById('close-modal-btn');
+                this.sharedLinesPreview = document.getElementById('shared-lines-preview');
+                this.shareMessageInput = document.getElementById('share-message');
+                this.generateShareLinkBtn = document.getElementById('generate-share-link-btn');
+                this.finalLinkInput = document.getElementById('final-link');
+                this.personalMessageDisplay = document.getElementById('personal-message-display');
+                this.momentPopup = document.getElementById('moment-popup');
+                this.popupMessage = document.getElementById('popup-message');
+                this.popupLyric = document.getElementById('popup-lyric');
+                this.selectionInfo = document.getElementById('selection-info');
+                this.selectionCount = document.getElementById('selection-count');
+                this.specialMoments = [];
+                this.init();
+            }
+
+            init() {
+                this.populatePoemText();
+                this.poemLines = this.poemTextContainer.querySelectorAll('.poem-line');
+                this.playPauseBtn.addEventListener('click', () => this.togglePlay());
+                this.progressRail.addEventListener('click', (e) => this.seek(e));
+                this.audioElement.addEventListener('timeupdate', () => this.updateUI());
+                this.audioElement.addEventListener('loadedmetadata', () => {
+                    this.setDuration();
+                    this.audioElement.play().catch(e => {
+                        console.log("Autoplay was prevented. User must interact with the page first.");
+                    });
+                });
+                this.audioElement.addEventListener('ended', () => this.resetPlayer());
+                this.audioElement.addEventListener('play', () => { this.playIcon.style.display = 'none'; this.pauseIcon.style.display = 'block'; });
+                this.audioElement.addEventListener('pause', () => { this.playIcon.style.display = 'block'; this.pauseIcon.style.display = 'none'; });
+                this.shareBtn.addEventListener('click', () => this.openShareModal());
+                this.clearSelectionBtn.addEventListener('click', () => this.clearSelection());
+                this.closeModalBtn.addEventListener('click', () => this.closeShareModal());
+                this.generateShareLinkBtn.addEventListener('click', () => this.generateShareLink());
+                this.poemLines.forEach((line, index) => {
+                    line.addEventListener('click', () => this.toggleLineSelection(index));
+                });
+                
+                this.momentPopup.addEventListener('click', () => this.hideMomentPopup());
+                
+                this.checkForSharedMoment();
+            }
+
+            populatePoemText() {
+                this.poemData.lyrics.forEach(line => {
+                    const span = document.createElement('span');
+                    span.classList.add('poem-line');
+                    span.textContent = line || '...';
+                    this.poemTextContainer.appendChild(span);
+                });
+            }
+
+            toggleLineSelection(index) {
+                const line = this.poemLines[index];
+                if (this.selectedLines.has(index)) {
+                    this.selectedLines.delete(index);
+                    line.classList.remove('selected');
+                } else {
+                    this.selectedLines.add(index);
+                    line.classList.add('selected');
+                }
+                this.updateSelectionUI();
+            }
+
+            clearSelection() {
+                this.selectedLines.clear();
+                this.poemLines.forEach(line => {
+                    line.classList.remove('selected');
+                });
+                this.updateSelectionUI();
+            }
+
+            updateSelectionUI() {
+                const count = this.selectedLines.size;
+                this.selectionCount.textContent = `${count} line${count !== 1 ? 's' : ''} selected`;
+                if (count > 0) {
+                    this.selectionInfo.classList.add('visible');
+                    this.clearSelectionBtn.classList.add('visible');
+                } else {
+                    this.selectionInfo.classList.remove('visible');
+                    this.clearSelectionBtn.classList.remove('visible');
+                }
+            }
+            
+            togglePlay() {
+                if (this.audioElement.paused || this.audioElement.ended) {
+                    this.audioElement.play();
+                } else {
+                    this.audioElement.pause();
+                }
+            }
+            
+            updateUI() {
+                if (this.audioElement.duration) {
+                    const progressPercent = (this.audioElement.currentTime / this.audioElement.duration) * 100;
+                    this.progressFill.style.width = `${progressPercent}%`;
+                    this.currentTimeEl.textContent = this.formatTime(this.audioElement.currentTime);
+                }
+                this.updateActiveLine();
+            }
+            
+            setDuration() {
+                 this.durationEl.textContent = this.formatTime(this.audioElement.duration);
+                 this.currentTimeEl.textContent = this.formatTime(0);
+            }
+            
+            resetPlayer() {
+                this.playIcon.style.display = 'block';
+                this.pauseIcon.style.display = 'none';
+                this.clearActiveLines();
+            }
+
+            seek(e) {
+                const railRect = this.progressRail.getBoundingClientRect();
+                const clickPosition = e.clientX - railRect.left;
+                const railWidth = this.progressRail.clientWidth;
+                this.audioElement.currentTime = (clickPosition / railWidth) * this.audioElement.duration;
+            }
+
+            formatTime(seconds) {
+                const minutes = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${minutes}:${secs.toString().padStart(2, '0')}`;
+            }
+
+            updateActiveLine() {
+                const currentTime = this.audioElement.currentTime;
+                let activeLineIndex = -1;
+                
+                for (let i = 0; i < this.poemData.timings.length; i++) {
+                    const timing = this.poemData.timings[i];
+                    if (timing.start === 0 && timing.end === 0) continue;
+                    if (currentTime >= timing.start && currentTime < timing.end) {
+                        activeLineIndex = i;
+                        break;
+                    }
+                }
+                
+                if (activeLineIndex !== this.currentLineIndex) {
+                    this.clearActiveLines();
+                    if (activeLineIndex !== -1) {
+                        const activeLine = this.poemLines[activeLineIndex];
+                        activeLine?.classList.add('active');
+                        activeLine?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                    this.currentLineIndex = activeLineIndex;
+                }
+                
+                this.specialMoments.forEach(moment => {
+                    const isInRange = moment.lines.some(lineIndex => {
+                        const timing = this.poemData.timings[lineIndex];
+                        return timing && currentTime >= timing.start && currentTime < timing.end;
+                    });
+                    
+                    if (isInRange) {
+                        this.highlightSpecialMoment(moment);
+                        // Only show the popup if it's not already visible
+                        if (!this.momentPopup.classList.contains('visible')) {
+                           this.showMomentPopup(moment.message, this.getSelectedLinesText(moment.lines));
+                        }
+                    } else {
+                        this.clearSpecialMoment(moment);
+                        // We no longer automatically hide the popup. User clicks to dismiss.
+                    }
+                });
+            }
+
+            highlightSpecialMoment(moment) {
+                moment.lines.forEach(lineIndex => {
+                    if (this.poemLines[lineIndex]) {
+                        this.poemLines[lineIndex].classList.add('special-moment');
+                    }
+                });
+            }
+
+            clearSpecialMoment(moment) {
+                moment.lines.forEach(lineIndex => {
+                    if (this.poemLines[lineIndex]) {
+                        this.poemLines[lineIndex].classList.remove('special-moment');
+                    }
+                });
+            }
+
+            clearActiveLines() { 
+                this.poemLines.forEach(line => { 
+                    line.classList.remove('active'); 
+                }); 
+                this.currentLineIndex = -1; 
+            }
+
+            openShareModal() {
+                if (this.selectedLines.size === 0) {
+                    alert("Please select at least one line to share by clicking on the lines.");
+                    return;
+                }
+                this.updateSharedLinesPreview();
+                this.shareModal.classList.add('visible');
+            }
+
+            updateSharedLinesPreview() {
+                const selectedLinesArray = Array.from(this.selectedLines).sort((a, b) => a - b);
+                this.sharedLinesPreview.innerHTML = '';
+                selectedLinesArray.forEach(lineIndex => {
+                    const div = document.createElement('div');
+                    div.className = 'shared-line-item';
+                    div.textContent = `"${this.poemData.lyrics[lineIndex]}"`;
+                    this.sharedLinesPreview.appendChild(div);
+                });
+            }
+
+            getSelectedLinesText(lines) {
+                return lines.map(index => this.poemData.lyrics[index]).join(' • ');
+            }
+
+            closeShareModal() { this.shareModal.classList.remove('visible'); }
+
+            generateShareLink() {
+                const selectedLinesArray = Array.from(this.selectedLines).sort((a, b) => a - b);
+                const dataToShare = { 
+                    m: this.shareMessageInput.value, 
+                    lines: selectedLinesArray 
+                };
+                const jsonString = JSON.stringify(dataToShare);
+                const encodedData = btoa(unescape(encodeURIComponent(jsonString)));
+                const playerUrl = `${appBaseUrl}/moment/${this.poemData.id}`;
+                const shareableLink = `${playerUrl}?data=${encodedData}`;
+                this.finalLinkInput.value = shareableLink;
+                this.finalLinkInput.select();
+                
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(shareableLink).then(() => {
+                        this.generateShareLinkBtn.textContent = 'Copied to Clipboard!';
+                        setTimeout(() => {
+                            this.generateShareLinkBtn.textContent = 'Generate Link';
+                        }, 2000);
+                    });
+                }
+            }
+
+            checkForSharedMoment() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const data = urlParams.get('data');
+                if (data) {
+                    try {
+                        const decodedString = decodeURIComponent(escape(atob(data)));
+                        const sharedData = JSON.parse(decodedString);
+                        if (sharedData.lines && sharedData.lines.length > 0) {
+                            this.specialMoments.push({
+                                lines: sharedData.lines,
+                                message: sharedData.m || "Someone shared these special lines with you..."
+                            });
+                            this.personalMessageDisplay.textContent = `${sharedData.lines.length} special line${sharedData.lines.length > 1 ? 's' : ''} shared with you...`;
+                        }
+                    } catch (e) { 
+                        console.error("Could not parse share data.", e); 
+                    }
+                }
+            }
+            
+            showMomentPopup(message, lyric) {
+                this.popupMessage.textContent = message;
+                this.popupLyric.textContent = lyric;
+                this.momentPopup.classList.add('visible');
+            }
+
+            hideMomentPopup() { this.momentPopup.classList.remove('visible'); }
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => { new PoemPlayer(); });
+    </script>
+</body>
+</html>
