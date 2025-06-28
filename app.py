@@ -3,8 +3,6 @@ import json
 import uuid
 import re
 import requests
-import time
-import random
 from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, jsonify
 import assemblyai as aai
 import yt_dlp
@@ -14,7 +12,6 @@ from thefuzz import fuzz
 
 load_dotenv()
 
-# --- Configuration (Render-friendly) ---
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'a_strong_default_secret_key_for_dev')
 DATA_DIR = os.environ.get('RENDER_DISK_PATH', 'uploads') 
@@ -22,14 +19,28 @@ app.config['UPLOAD_FOLDER'] = os.path.join(DATA_DIR, 'uploads')
 app.config['MOMENTS_FOLDER'] = os.path.join(DATA_DIR, 'moments')
 app.config['APP_BASE_URL'] = os.getenv('RENDER_EXTERNAL_URL', 'http://127.0.0.1:5000')
 
-# YouTube Data API configuration (for search)
 YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY')
 YOUTUBE_API_BASE_URL = 'https://www.googleapis.com/youtube/v3'
+
+SUPPORTED_LANGUAGES = {
+    'auto': 'Auto-detect',
+    'en': 'English',
+    'hi': 'Hindi',
+    'pa': 'Punjabi',
+    'ur': 'Urdu',
+    'bn': 'Bengali',
+    'ta': 'Tamil',
+    'te': 'Telugu',
+    'ml': 'Malayalam',
+    'kn': 'Kannada',
+    'gu': 'Gujarati',
+    'mr': 'Marathi',
+    'or': 'Odia'
+}
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['MOMENTS_FOLDER'], exist_ok=True)
 
-# --- API Key Setup ---
 aai.settings.api_key = os.getenv("ASSEMBLYAI_API_KEY")
 genius_token = os.getenv("GENIUS_API_TOKEN")
 
@@ -38,152 +49,16 @@ if not all([aai.settings.api_key, genius_token, YOUTUBE_API_KEY]):
 
 genius = lyricsgenius.Genius(genius_token, timeout=15, verbose=False, remove_section_headers=True)
 
-def get_random_user_agent():
-    """Return a random user agent to avoid detection."""
-    user_agents = [
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0'
-    ]
-    return random.choice(user_agents)
-
-def download_with_fallback_methods(youtube_url, output_path):
-    """Try multiple download methods with different configurations."""
-    
-    # Method 1: Standard approach with enhanced headers
-    methods = [
-        {
-            'name': 'Enhanced Headers',
-            'opts': {
-                'format': 'bestaudio/best',
-                'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3'}],
-                'outtmpl': output_path,
-                'quiet': True,
-                'no_warnings': True,
-                'noplaylist': True,
-                'source_address': '0.0.0.0',
-                'http_headers': {
-                    'User-Agent': get_random_user_agent(),
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                    'Accept-Language': 'en-us,en;q=0.5',
-                    'Accept-Encoding': 'gzip, deflate',
-                    'Connection': 'keep-alive',
-                    'Upgrade-Insecure-Requests': '1',
-                },
-                'sleep_interval': random.uniform(1, 3),
-                'max_sleep_interval': 5,
-                'retries': 3
-            }
-        },
-        
-        # Method 2: Use different player client
-        {
-            'name': 'Web Player Client',
-            'opts': {
-                'format': 'bestaudio/best',
-                'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3'}],
-                'outtmpl': output_path,
-                'quiet': True,
-                'no_warnings': True,
-                'noplaylist': True,
-                'extractor_args': {'youtube': {'player_client': ['web']}},
-                'http_headers': {'User-Agent': get_random_user_agent()},
-                'sleep_interval': random.uniform(1, 3)
-            }
-        },
-        
-        # Method 3: Mobile web client
-        {
-            'name': 'Mobile Web Client',
-            'opts': {
-                'format': 'bestaudio/best',
-                'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3'}],
-                'outtmpl': output_path,
-                'quiet': True,
-                'no_warnings': True,
-                'noplaylist': True,
-                'extractor_args': {'youtube': {'player_client': ['mweb']}},
-                'http_headers': {
-                    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Mobile/15E148 Safari/604.1'
-                },
-                'sleep_interval': random.uniform(2, 4)
-            }
-        },
-        
-        # Method 4: Use cookies if available (environment variable)
-        {
-            'name': 'With Cookies',
-            'opts': {
-                'format': 'bestaudio/best',
-                'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3'}],
-                'outtmpl': output_path,
-                'quiet': True,
-                'no_warnings': True,
-                'noplaylist': True,
-                'http_headers': {'User-Agent': get_random_user_agent()},
-                'sleep_interval': random.uniform(1, 3)
-            }
-        }
-    ]
-    
-    # Add cookies to method 4 if available
-    cookies_b64 = os.getenv('YOUTUBE_COOKIES_B64')
-    if cookies_b64:
-        try:
-            import base64
-            cookies_content = base64.b64decode(cookies_b64).decode('utf-8')
-            cookies_file = '/tmp/yt_cookies.txt'
-            with open(cookies_file, 'w') as f:
-                f.write(cookies_content)
-            methods[3]['opts']['cookiefile'] = cookies_file
-            print("Using cookies from environment variable")
-        except Exception as e:
-            print(f"Failed to decode cookies: {e}")
-            methods.pop(3)  # Remove cookie method if it fails
-    else:
-        methods.pop(3)  # Remove cookie method if no cookies available
-    
-    last_error = None
-    
-    for method in methods:
-        try:
-            print(f"Trying download method: {method['name']}")
-            
-            # Add random delay before each attempt
-            time.sleep(random.uniform(0.5, 2.0))
-            
-            with yt_dlp.YoutubeDL(method['opts']) as ydl:
-                info = ydl.extract_info(youtube_url, download=True)
-                
-                # Clean up temporary cookies file if it exists
-                if 'cookiefile' in method['opts'] and os.path.exists(method['opts']['cookiefile']):
-                    os.remove(method['opts']['cookiefile'])
-                
-                print(f"Successfully downloaded using method: {method['name']}")
-                return info
-                
-        except Exception as e:
-            print(f"Method '{method['name']}' failed: {str(e)}")
-            last_error = e
-            
-            # Clean up temporary cookies file if it exists and method failed
-            if 'cookiefile' in method['opts'] and os.path.exists(method['opts']['cookiefile']):
-                os.remove(method['opts']['cookiefile'])
-            
-            # Wait before trying next method
-            time.sleep(random.uniform(2, 5))
-            continue
-    
-    # If all methods failed, raise the last error
-    raise Exception(f"All download methods failed. Last error: {str(last_error)}")
-
-def process_and_align(audio_path, lyrics_text):
-    """Your robust alignment function remains here."""
-    print("Transcribing audio for timestamps...")
+def process_and_align(audio_path, lyrics_text, language_code='auto'):
+    """Enhanced alignment function with language support."""
+    print(f"Transcribing audio for timestamps (Language: {SUPPORTED_LANGUAGES.get(language_code, 'Auto-detect')})...")
     transcriber = aai.Transcriber()
-    config = aai.TranscriptionConfig(language_detection=True)
+    
+    if language_code == 'auto':
+        config = aai.TranscriptionConfig(language_detection=True)
+    else:
+        config = aai.TranscriptionConfig(language_code=language_code)
+    
     transcript = transcriber.transcribe(audio_path, config=config)
 
     if transcript.status == aai.TranscriptStatus.error:
@@ -193,17 +68,53 @@ def process_and_align(audio_path, lyrics_text):
     if not words:
         raise Exception("No words found in transcription")
 
+    if hasattr(transcript, 'language_code'):
+        detected_lang = SUPPORTED_LANGUAGES.get(transcript.language_code, transcript.language_code)
+        print(f"Detected language: {detected_lang}")
+
     print("Aligning lyrics...")
     poem_lines = [line.strip() for line in lyrics_text.strip().split('\n') if line.strip()]
     line_timings = []
     total_duration = words[-1].end / 1000.0 if words else 0
     
-    # Using a simple time-based fallback for alignment for now.
+    word_index = 0
     for i, line_text in enumerate(poem_lines):
-        line_duration = total_duration / len(poem_lines)
-        start_time = i * line_duration
-        end_time = (i + 1) * line_duration
-        line_timings.append({'start': start_time, 'end': end_time})
+        clean_line = re.sub(r'[^\w\s]', '', line_text.lower())
+        line_words = clean_line.split()
+        
+        if not line_words:
+            line_duration = total_duration / len(poem_lines)
+            start_time = i * line_duration
+            end_time = (i + 1) * line_duration
+            line_timings.append({'start': start_time, 'end': end_time})
+            continue
+        
+        line_start_time = None
+        line_end_time = None
+        matched_words = 0
+        
+        search_start = max(0, word_index - 5)
+        search_end = min(len(words), word_index + 20)
+        
+        for j in range(search_start, search_end):
+            transcript_word = re.sub(r'[^\w\s]', '', words[j].text.lower())
+            
+            for line_word in line_words:
+                if fuzz.ratio(transcript_word, line_word) > 80:
+                    if line_start_time is None:
+                        line_start_time = words[j].start / 1000.0
+                    line_end_time = words[j].end / 1000.0
+                    matched_words += 1
+                    word_index = j + 1
+                    break
+        
+        if matched_words > 0 and line_start_time is not None:
+            line_timings.append({'start': line_start_time, 'end': line_end_time})
+        else:
+            line_duration = total_duration / len(poem_lines)
+            start_time = i * line_duration
+            end_time = (i + 1) * line_duration
+            line_timings.append({'start': start_time, 'end': end_time})
 
     return poem_lines, line_timings
 
@@ -228,7 +139,7 @@ def search_youtube_videos(query, max_results=5):
 
 @app.route('/')
 def homepage():
-    return render_template('creator.html')
+    return render_template('creator.html', supported_languages=SUPPORTED_LANGUAGES)
 
 @app.route('/search_youtube')
 def search_youtube():
@@ -248,17 +159,30 @@ def create_moment():
         title = request.form.get('title')
         youtube_url = request.form.get('youtube_url')
         audio_file = request.files.get('audio_file')
+        language_code = request.form.get('language', 'auto')
+
+        if language_code not in SUPPORTED_LANGUAGES:
+            language_code = 'auto'
+
+        print(f"Processing with language: {SUPPORTED_LANGUAGES.get(language_code)}")
 
         if youtube_url:
             print(f"Processing YouTube URL: {youtube_url}")
             temp_filename = str(uuid.uuid4())
             audio_output_template = os.path.join(app.config['UPLOAD_FOLDER'], temp_filename)
             
-            # Use the enhanced download function
-            info = download_with_fallback_methods(youtube_url, audio_output_template)
-            
-            song_title = title or info.get('title', 'Untitled Song')
-            artist = info.get('artist') or info.get('channel', 'Unknown Artist')
+            ydl_opts = {
+                'format': 'bestaudio/best',
+                'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3'}],
+                'outtmpl': audio_output_template,
+                'quiet': True,
+                'no_warnings': True
+            }
+
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(youtube_url, download=True)
+                song_title = title or info.get('title', 'Untitled Song')
+                artist = info.get('artist') or info.get('channel', 'Unknown Artist')
 
             audio_output_path = f"{audio_output_template}.mp3"
             audio_filename_to_save = f"{temp_filename}.mp3"
@@ -274,7 +198,11 @@ def create_moment():
                     else:
                         raise Exception("Lyrics not found on Genius.")
                 except Exception as e:
-                    raise Exception(f"Automatic lyric lookup failed: {e}. Please provide lyrics manually.")
+                    print(f"Automatic lyric lookup failed: {e}")
+                    if language_code == 'pa':
+                        raise Exception(f"Automatic lyric lookup failed for Punjabi content: {e}. Please provide lyrics manually as Genius may have limited Punjabi content.")
+                    else:
+                        raise Exception(f"Automatic lyric lookup failed: {e}. Please provide lyrics manually.")
             
         elif audio_file and audio_file.filename != '':
             if not title or not lyrics_text: 
@@ -289,7 +217,7 @@ def create_moment():
         else:
             raise Exception("Please provide either a YouTube URL or an audio file.")
 
-        poem_lines, line_timings = process_and_align(audio_output_path, lyrics_to_use)
+        poem_lines, line_timings = process_and_align(audio_output_path, lyrics_to_use, language_code)
         
         moment_id = str(uuid.uuid4())
         moment_data = {
@@ -297,14 +225,16 @@ def create_moment():
             "title": song_title, 
             "audio_filename": audio_filename_to_save, 
             "lyrics": poem_lines, 
-            "timings": line_timings
+            "timings": line_timings,
+            "language": language_code,
+            "language_name": SUPPORTED_LANGUAGES.get(language_code, 'Auto-detect')
         }
         
         moment_file_path = os.path.join(app.config['MOMENTS_FOLDER'], f'{moment_id}.json')
-        with open(moment_file_path, 'w') as f:
-            json.dump(moment_data, f, indent=2)
+        with open(moment_file_path, 'w', encoding='utf-8') as f:
+            json.dump(moment_data, f, indent=2, ensure_ascii=False)
 
-        print(f"Successfully created moment: {moment_id}")
+        print(f"Successfully created moment: {moment_id} (Language: {SUPPORTED_LANGUAGES.get(language_code)})")
         return redirect(url_for('view_moment', moment_id=moment_id))
 
     except Exception as e:
@@ -316,7 +246,7 @@ def create_moment():
 def view_moment(moment_id):
     file_path = os.path.join(app.config['MOMENTS_FOLDER'], f'{moment_id}.json')
     try:
-        with open(file_path, 'r') as f:
+        with open(file_path, 'r', encoding='utf-8') as f:
             moment_data = json.load(f)
             return render_template('player.html', moment_data=moment_data, base_url=app.config['APP_BASE_URL'])
     except FileNotFoundError:
