@@ -92,6 +92,11 @@
                 this.selectionInfo = document.getElementById('selection-info');
                 this.selectionCount = document.getElementById('selection-count');
                 this.specialMoments = [];
+                
+                this.momentPopupDismissed = false; 
+                this.boundHideMomentPopup = this.hideMomentPopup.bind(this);
+                this.currentPopupMoment = null; // Track which moment is currently showing
+
                 this.init();
             }
 
@@ -117,9 +122,7 @@
                 this.poemLines.forEach((line, index) => {
                     line.addEventListener('click', () => this.toggleLineSelection(index));
                 });
-                
-                this.momentPopup.addEventListener('click', () => this.hideMomentPopup());
-                
+
                 this.checkForSharedMoment();
             }
 
@@ -236,13 +239,9 @@
                     
                     if (isInRange) {
                         this.highlightSpecialMoment(moment);
-                        // Only show the popup if it's not already visible
-                        if (!this.momentPopup.classList.contains('visible')) {
-                           this.showMomentPopup(moment.message, this.getSelectedLinesText(moment.lines));
-                        }
+                        this.showMomentPopup(moment.message, this.getSelectedLinesText(moment.lines), moment);
                     } else {
                         this.clearSpecialMoment(moment);
-                        // We no longer automatically hide the popup. User clicks to dismiss.
                     }
                 });
             }
@@ -339,13 +338,31 @@
                 }
             }
             
-            showMomentPopup(message, lyric) {
+            showMomentPopup(message, lyric, moment) {
+                if (this.momentPopupDismissed || this.currentPopupMoment === moment) {
+                    return;
+                }
+
+                this.currentPopupMoment = moment;
                 this.popupMessage.textContent = message;
                 this.popupLyric.textContent = lyric;
                 this.momentPopup.classList.add('visible');
+                
+                setTimeout(() => {
+                    document.addEventListener('click', this.boundHideMomentPopup);
+                }, 100);
             }
 
-            hideMomentPopup() { this.momentPopup.classList.remove('visible'); }
+            hideMomentPopup() {
+                this.momentPopup.classList.remove('visible');
+                this.currentPopupMoment = null;
+                
+                document.removeEventListener('click', this.boundHideMomentPopup);
+                
+                setTimeout(() => {
+                    this.momentPopupDismissed = false;
+                }, 500);
+            }
         }
         
         document.addEventListener('DOMContentLoaded', () => { new PoemPlayer(); });

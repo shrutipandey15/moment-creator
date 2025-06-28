@@ -7,6 +7,32 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        #Youtube-results {
+            text-align: left;
+            margin-top: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .video-result-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .video-result-item:hover {
+            background-color: rgba(255,255,255,0.4);
+        }
+        .video-result-item img {
+            width: 100px;
+            height: 75px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+    </style>
 </head>
 <body>
     {% include '_doodles.html' %}
@@ -24,27 +50,95 @@
             {% endif %}
         {% endwith %}
 
-        <form action="/create" method="post" enctype="multipart/form-data" class="moment-form">
+        <form action="/create" method="post" enctype="multipart/form-data" class="moment-form" id="moment-form">
             <div class="form-step">
-                <label for="title">Title of Poem or Song</label>
-                <input type="text" id="title" name="title" required placeholder="This will be displayed on the player">
+                <label for="title">Song Title</label>
+                <input type="text" id="title" name="title" required placeholder="Enter the song title">
             </div>
 
             <div class="form-step">
-                 <label for="youtube_url">Audio Source: YouTube Link OR Upload</label>
-                 <input type="text" name="youtube_url" placeholder="Paste a YouTube URL here...">
+                 <label for="Youtube">Find on YouTube (or Upload Directly Below)</label>
+                 <div style="display: flex; gap: 0.5rem;">
+                    <input type="text" id="Youtube" placeholder="Search for a song or artist...">
+                    <button type="button" id="search-btn" class="submit-btn" style="width: auto; margin-top: 0;">Search</button>
+                 </div>
+                 <div id="Youtube-results"></div>
+                 <input type="hidden" name="youtube_url" id="youtube_url">
             </div>
             
             <div class="form-step">
-                 <input type="file" name="audio_file" accept="audio/*">
+                <label for="audio_file">Or Upload Audio File Directly</label>
+                <input type="file" name="audio_file" accept="audio/*">
             </div>
 
             <div class="form-step">
                 <label for="lyrics_text">The Full Text / Lyrics</label>
-                <textarea name="lyrics_text" rows="10" placeholder="Pasting lyrics here is the best way to guarantee a match..."></textarea>
+                <textarea name="lyrics_text" id="lyrics_text" rows="10" placeholder="Pasting lyrics here is the best way to guarantee a match..."></textarea>
             </div>
             <button type="submit" class="submit-btn">Create My Moment</button>
         </form>
     </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const searchBtn = document.getElementById('search-btn');
+        const searchInput = document.getElementById('Youtube');
+        const resultsContainer = document.getElementById('Youtube-results');
+        const youtubeUrlInput = document.getElementById('youtube_url');
+        const titleInput = document.getElementById('title');
+
+        const performSearch = async () => {
+            const query = searchInput.value;
+            if (!query) return;
+
+            resultsContainer.innerHTML = '<p>Searching...</p>';
+
+            try {
+                const response = await fetch(`/search_youtube?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    resultsContainer.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+                    return;
+                }
+
+                resultsContainer.innerHTML = '';
+                if (data.videos && data.videos.length > 0) {
+                    data.videos.forEach(video => {
+                        const item = document.createElement('div');
+                        item.className = 'video-result-item';
+                        item.innerHTML = `
+                            <img src="${video.thumbnail}" alt="Thumbnail">
+                            <div>
+                                <strong>${video.title}</strong>
+                                <p>${video.channel}</p>
+                            </div>
+                        `;
+                        item.addEventListener('click', () => {
+                            youtubeUrlInput.value = `https://www.youtube.com/watch?v=${video.video_id}`;
+                            if (!titleInput.value) {
+                                titleInput.value = video.title;
+                            }
+                            resultsContainer.innerHTML = `<p style="color: green; font-weight: bold;">Selected: ${video.title}</p>`;
+                        });
+                        resultsContainer.appendChild(item);
+                    });
+                } else {
+                    resultsContainer.innerHTML = '<p>No results found.</p>';
+                }
+            } catch (error) {
+                resultsContainer.innerHTML = `<p style="color: red;">A network error occurred.</p>`;
+            }
+        };
+
+        searchBtn.addEventListener('click', performSearch);
+        searchInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                performSearch();
+            }
+        });
+    });
+</script>
 </body>
 </html>
