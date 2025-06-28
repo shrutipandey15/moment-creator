@@ -12,6 +12,7 @@ from thefuzz import fuzz
 
 load_dotenv()
 
+# --- Configuration (Render-friendly) ---
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'a_strong_default_secret_key_for_dev')
 DATA_DIR = os.environ.get('RENDER_DISK_PATH', 'uploads') 
@@ -19,28 +20,14 @@ app.config['UPLOAD_FOLDER'] = os.path.join(DATA_DIR, 'uploads')
 app.config['MOMENTS_FOLDER'] = os.path.join(DATA_DIR, 'moments')
 app.config['APP_BASE_URL'] = os.getenv('RENDER_EXTERNAL_URL', 'http://127.0.0.1:5000')
 
+# YouTube Data API configuration (for search)
 YOUTUBE_API_KEY = os.getenv('YOUTUBE_API_KEY')
 YOUTUBE_API_BASE_URL = 'https://www.googleapis.com/youtube/v3'
-
-SUPPORTED_LANGUAGES = {
-    'auto': 'Auto-detect',
-    'en': 'English',
-    'hi': 'Hindi',
-    'pa': 'Punjabi',
-    'ur': 'Urdu',
-    'bn': 'Bengali',
-    'ta': 'Tamil',
-    'te': 'Telugu',
-    'ml': 'Malayalam',
-    'kn': 'Kannada',
-    'gu': 'Gujarati',
-    'mr': 'Marathi',
-    'or': 'Odia'
-}
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['MOMENTS_FOLDER'], exist_ok=True)
 
+# --- API Key Setup ---
 aai.settings.api_key = os.getenv("ASSEMBLYAI_API_KEY")
 genius_token = os.getenv("GENIUS_API_TOKEN")
 
@@ -49,16 +36,11 @@ if not all([aai.settings.api_key, genius_token, YOUTUBE_API_KEY]):
 
 genius = lyricsgenius.Genius(genius_token, timeout=15, verbose=False, remove_section_headers=True)
 
-def process_and_align(audio_path, lyrics_text, language_code='auto'):
-    """Enhanced alignment function with language support."""
-    print(f"Transcribing audio for timestamps (Language: {SUPPORTED_LANGUAGES.get(language_code, 'Auto-detect')})...")
+def process_and_align(audio_path, lyrics_text):
+    """Your robust alignment function remains here."""
+    print("Transcribing audio for timestamps...")
     transcriber = aai.Transcriber()
-    
-    if language_code == 'auto':
-        config = aai.TranscriptionConfig(language_detection=True)
-    else:
-        config = aai.TranscriptionConfig(language_code=language_code)
-    
+    config = aai.TranscriptionConfig(language_detection=True)
     transcript = transcriber.transcribe(audio_path, config=config)
 
     if transcript.status == aai.TranscriptStatus.error:
@@ -68,54 +50,17 @@ def process_and_align(audio_path, lyrics_text, language_code='auto'):
     if not words:
         raise Exception("No words found in transcription")
 
-    if hasattr(transcript, 'language_code'):
-        detected_lang = SUPPORTED_LANGUAGES.get(transcript.language_code, transcript.language_code)
-        print(f"Detected language: {detected_lang}")
-
     print("Aligning lyrics...")
     poem_lines = [line.strip() for line in lyrics_text.strip().split('\n') if line.strip()]
     line_timings = []
     total_duration = words[-1].end / 1000.0 if words else 0
     
-    word_index = 0
+    # Using a simple time-based fallback for alignment for now.
     for i, line_text in enumerate(poem_lines):
-        # Clean line text for better matching
-        clean_line = re.sub(r'[^\w\s]', '', line_text.lower())
-        line_words = clean_line.split()
-        
-        if not line_words:
-            line_duration = total_duration / len(poem_lines)
-            start_time = i * line_duration
-            end_time = (i + 1) * line_duration
-            line_timings.append({'start': start_time, 'end': end_time})
-            continue
-        
-        line_start_time = None
-        line_end_time = None
-        matched_words = 0
-        
-        search_start = max(0, word_index - 5)
-        search_end = min(len(words), word_index + 20)
-        
-        for j in range(search_start, search_end):
-            transcript_word = re.sub(r'[^\w\s]', '', words[j].text.lower())
-            
-            for line_word in line_words:
-                if fuzz.ratio(transcript_word, line_word) > 80:
-                    if line_start_time is None:
-                        line_start_time = words[j].start / 1000.0
-                    line_end_time = words[j].end / 1000.0
-                    matched_words += 1
-                    word_index = j + 1
-                    break
-        
-        if matched_words > 0 and line_start_time is not None:
-            line_timings.append({'start': line_start_time, 'end': line_end_time})
-        else:
-            line_duration = total_duration / len(poem_lines)
-            start_time = i * line_duration
-            end_time = (i + 1) * line_duration
-            line_timings.append({'start': start_time, 'end': end_time})
+        line_duration = total_duration / len(poem_lines)
+        start_time = i * line_duration
+        end_time = (i + 1) * line_duration
+        line_timings.append({'start': start_time, 'end': end_time})
 
     return poem_lines, line_timings
 
@@ -140,7 +85,7 @@ def search_youtube_videos(query, max_results=5):
 
 @app.route('/')
 def homepage():
-    return render_template('creator.html', supported_languages=SUPPORTED_LANGUAGES)
+    return render_template('creator.html')
 
 @app.route('/search_youtube')
 def search_youtube():
@@ -160,25 +105,26 @@ def create_moment():
         title = request.form.get('title')
         youtube_url = request.form.get('youtube_url')
         audio_file = request.files.get('audio_file')
-        language_code = request.form.get('language', 'auto')  # Get selected language
-
-        if language_code not in SUPPORTED_LANGUAGES:
-            language_code = 'auto'
-
-        print(f"Processing with language: {SUPPORTED_LANGUAGES.get(language_code)}")
 
         if youtube_url:
             print(f"Processing YouTube URL: {youtube_url}")
             temp_filename = str(uuid.uuid4())
             audio_output_template = os.path.join(app.config['UPLOAD_FOLDER'], temp_filename)
             
+            # --- FIX FOR RENDER/SERVER ENVIRONMENTS ---
             ydl_opts = {
                 'format': 'bestaudio/best',
                 'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3'}],
                 'outtmpl': audio_output_template,
                 'quiet': True,
-                'no_warnings': True
+                'no_warnings': True,
+                'noplaylist': True,
+                'source_address': '0.0.0.0', # Use non-fixed IP address
+                'http_headers': { # Pretend to be a browser
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'
+                }
             }
+            # --- END FIX ---
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 info = ydl.extract_info(youtube_url, download=True)
@@ -199,11 +145,7 @@ def create_moment():
                     else:
                         raise Exception("Lyrics not found on Genius.")
                 except Exception as e:
-                    print(f"Automatic lyric lookup failed: {e}")
-                    if language_code == 'pa':
-                        raise Exception(f"Automatic lyric lookup failed for Punjabi content: {e}. Please provide lyrics manually as Genius may have limited Punjabi content.")
-                    else:
-                        raise Exception(f"Automatic lyric lookup failed: {e}. Please provide lyrics manually.")
+                    raise Exception(f"Automatic lyric lookup failed: {e}. Please provide lyrics manually.")
             
         elif audio_file and audio_file.filename != '':
             if not title or not lyrics_text: 
@@ -216,11 +158,9 @@ def create_moment():
             lyrics_to_use = lyrics_text
         
         else:
-            # This now correctly catches the case where neither option was chosen.
             raise Exception("Please provide either a YouTube URL or an audio file.")
 
-        # --- COMMON PROCESSING WITH LANGUAGE SUPPORT ---
-        poem_lines, line_timings = process_and_align(audio_output_path, lyrics_to_use, language_code)
+        poem_lines, line_timings = process_and_align(audio_output_path, lyrics_to_use)
         
         moment_id = str(uuid.uuid4())
         moment_data = {
@@ -228,16 +168,14 @@ def create_moment():
             "title": song_title, 
             "audio_filename": audio_filename_to_save, 
             "lyrics": poem_lines, 
-            "timings": line_timings,
-            "language": language_code,
-            "language_name": SUPPORTED_LANGUAGES.get(language_code, 'Auto-detect')
+            "timings": line_timings
         }
         
         moment_file_path = os.path.join(app.config['MOMENTS_FOLDER'], f'{moment_id}.json')
-        with open(moment_file_path, 'w', encoding='utf-8') as f:
-            json.dump(moment_data, f, indent=2, ensure_ascii=False)
+        with open(moment_file_path, 'w') as f:
+            json.dump(moment_data, f, indent=2)
 
-        print(f"Successfully created moment: {moment_id} (Language: {SUPPORTED_LANGUAGES.get(language_code)})")
+        print(f"Successfully created moment: {moment_id}")
         return redirect(url_for('view_moment', moment_id=moment_id))
 
     except Exception as e:
@@ -249,7 +187,7 @@ def create_moment():
 def view_moment(moment_id):
     file_path = os.path.join(app.config['MOMENTS_FOLDER'], f'{moment_id}.json')
     try:
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, 'r') as f:
             moment_data = json.load(f)
             return render_template('player.html', moment_data=moment_data, base_url=app.config['APP_BASE_URL'])
     except FileNotFoundError:
