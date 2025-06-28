@@ -3,6 +3,8 @@ import json
 import uuid
 import re
 import requests
+import time
+import random
 from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory, jsonify
 import assemblyai as aai
 import yt_dlp
@@ -35,6 +37,147 @@ if not all([aai.settings.api_key, genius_token, YOUTUBE_API_KEY]):
     print("CRITICAL ERROR: One or more API keys (AssemblyAI, Genius, YouTube) are not set.")
 
 genius = lyricsgenius.Genius(genius_token, timeout=15, verbose=False, remove_section_headers=True)
+
+def get_random_user_agent():
+    """Return a random user agent to avoid detection."""
+    user_agents = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0'
+    ]
+    return random.choice(user_agents)
+
+def download_with_fallback_methods(youtube_url, output_path):
+    """Try multiple download methods with different configurations."""
+    
+    # Method 1: Standard approach with enhanced headers
+    methods = [
+        {
+            'name': 'Enhanced Headers',
+            'opts': {
+                'format': 'bestaudio/best',
+                'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3'}],
+                'outtmpl': output_path,
+                'quiet': True,
+                'no_warnings': True,
+                'noplaylist': True,
+                'source_address': '0.0.0.0',
+                'http_headers': {
+                    'User-Agent': get_random_user_agent(),
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language': 'en-us,en;q=0.5',
+                    'Accept-Encoding': 'gzip, deflate',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1',
+                },
+                'sleep_interval': random.uniform(1, 3),
+                'max_sleep_interval': 5,
+                'retries': 3
+            }
+        },
+        
+        # Method 2: Use different player client
+        {
+            'name': 'Web Player Client',
+            'opts': {
+                'format': 'bestaudio/best',
+                'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3'}],
+                'outtmpl': output_path,
+                'quiet': True,
+                'no_warnings': True,
+                'noplaylist': True,
+                'extractor_args': {'youtube': {'player_client': ['web']}},
+                'http_headers': {'User-Agent': get_random_user_agent()},
+                'sleep_interval': random.uniform(1, 3)
+            }
+        },
+        
+        # Method 3: Mobile web client
+        {
+            'name': 'Mobile Web Client',
+            'opts': {
+                'format': 'bestaudio/best',
+                'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3'}],
+                'outtmpl': output_path,
+                'quiet': True,
+                'no_warnings': True,
+                'noplaylist': True,
+                'extractor_args': {'youtube': {'player_client': ['mweb']}},
+                'http_headers': {
+                    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Mobile/15E148 Safari/604.1'
+                },
+                'sleep_interval': random.uniform(2, 4)
+            }
+        },
+        
+        # Method 4: Use cookies if available (environment variable)
+        {
+            'name': 'With Cookies',
+            'opts': {
+                'format': 'bestaudio/best',
+                'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3'}],
+                'outtmpl': output_path,
+                'quiet': True,
+                'no_warnings': True,
+                'noplaylist': True,
+                'http_headers': {'User-Agent': get_random_user_agent()},
+                'sleep_interval': random.uniform(1, 3)
+            }
+        }
+    ]
+    
+    # Add cookies to method 4 if available
+    cookies_b64 = os.getenv('YOUTUBE_COOKIES_B64')
+    if cookies_b64:
+        try:
+            import base64
+            cookies_content = base64.b64decode(cookies_b64).decode('utf-8')
+            cookies_file = '/tmp/yt_cookies.txt'
+            with open(cookies_file, 'w') as f:
+                f.write(cookies_content)
+            methods[3]['opts']['cookiefile'] = cookies_file
+            print("Using cookies from environment variable")
+        except Exception as e:
+            print(f"Failed to decode cookies: {e}")
+            methods.pop(3)  # Remove cookie method if it fails
+    else:
+        methods.pop(3)  # Remove cookie method if no cookies available
+    
+    last_error = None
+    
+    for method in methods:
+        try:
+            print(f"Trying download method: {method['name']}")
+            
+            # Add random delay before each attempt
+            time.sleep(random.uniform(0.5, 2.0))
+            
+            with yt_dlp.YoutubeDL(method['opts']) as ydl:
+                info = ydl.extract_info(youtube_url, download=True)
+                
+                # Clean up temporary cookies file if it exists
+                if 'cookiefile' in method['opts'] and os.path.exists(method['opts']['cookiefile']):
+                    os.remove(method['opts']['cookiefile'])
+                
+                print(f"Successfully downloaded using method: {method['name']}")
+                return info
+                
+        except Exception as e:
+            print(f"Method '{method['name']}' failed: {str(e)}")
+            last_error = e
+            
+            # Clean up temporary cookies file if it exists and method failed
+            if 'cookiefile' in method['opts'] and os.path.exists(method['opts']['cookiefile']):
+                os.remove(method['opts']['cookiefile'])
+            
+            # Wait before trying next method
+            time.sleep(random.uniform(2, 5))
+            continue
+    
+    # If all methods failed, raise the last error
+    raise Exception(f"All download methods failed. Last error: {str(last_error)}")
 
 def process_and_align(audio_path, lyrics_text):
     """Your robust alignment function remains here."""
@@ -111,25 +254,11 @@ def create_moment():
             temp_filename = str(uuid.uuid4())
             audio_output_template = os.path.join(app.config['UPLOAD_FOLDER'], temp_filename)
             
-            # --- FIX FOR RENDER/SERVER ENVIRONMENTS ---
-            ydl_opts = {
-                'format': 'bestaudio/best',
-                'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3'}],
-                'outtmpl': audio_output_template,
-                'quiet': True,
-                'no_warnings': True,
-                'noplaylist': True,
-                'source_address': '0.0.0.0', # Use non-fixed IP address
-                'http_headers': { # Pretend to be a browser
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'
-                }
-            }
-            # --- END FIX ---
-
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(youtube_url, download=True)
-                song_title = title or info.get('title', 'Untitled Song')
-                artist = info.get('artist') or info.get('channel', 'Unknown Artist')
+            # Use the enhanced download function
+            info = download_with_fallback_methods(youtube_url, audio_output_template)
+            
+            song_title = title or info.get('title', 'Untitled Song')
+            artist = info.get('artist') or info.get('channel', 'Unknown Artist')
 
             audio_output_path = f"{audio_output_template}.mp3"
             audio_filename_to_save = f"{temp_filename}.mp3"
