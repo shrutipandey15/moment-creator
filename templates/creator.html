@@ -1,144 +1,257 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="UTF-8" />
     <title>Create a Moment</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='styles.css') }}"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
-        #Youtube-results {
-            text-align: left;
-            margin-top: 1rem;
-            max-height: 300px;
-            overflow-y: auto;
-        }
-        .video-result-item {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 0.75rem;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        .video-result-item:hover {
-            background-color: rgba(255,255,255,0.4);
-        }
-        .video-result-item img {
-            width: 100px;
-            height: 75px;
-            object-fit: cover;
-            border-radius: 4px;
-        }
+      #youtube-results {
+        text-align: left;
+        margin-top: 1rem;
+        max-height: 300px;
+        overflow-y: auto;
+      }
+      .video-result-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0.75rem;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        border: 2px solid transparent;
+      }
+      .video-result-item:hover {
+        background-color: rgba(0, 0, 0, 0.05);
+      }
+      .video-result-item.selected {
+        border-color: var(--special-highlight-color);
+        background-color: rgba(139, 90, 159, 0.1);
+      }
+      .video-result-item img {
+        width: 100px;
+        height: 75px;
+        object-fit: cover;
+        border-radius: 4px;
+        flex-shrink: 0;
+      }
+      .video-details {
+        min-width: 0;
+      }
+      .video-details strong {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     {% include '_doodles.html' %}
     <div class="main-container">
-        <header class="header">
-            <h1 class="title">Create a Moment</h1>
-            <h2 class="subtitle">Bring your words and sounds to life.</h2>
-        </header>
-        
-        {% with messages = get_flashed_messages() %}
-            {% if messages %}
-                <div class="flash-message" style="background: #ffcdd2; color: #c62828; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
-                    {{ messages[0] }}
-                </div>
-            {% endif %}
-        {% endwith %}
+      <header class="header">
+        <h1 class="title">Create a Moment</h1>
+        <h2 class="subtitle">Bring your words and sounds to life.</h2>
+      </header>
 
-        <form action="/create" method="post" enctype="multipart/form-data" class="moment-form" id="moment-form">
-            <div class="form-step">
-                <label for="title">Song Title</label>
-                <input type="text" id="title" name="title" required placeholder="Enter the song title">
-            </div>
+      {% with messages = get_flashed_messages() %} {% if messages %}
+      <div
+        class="flash-message"
+        style="
+          background: #ffcdd2;
+          color: #c62828;
+          padding: 1rem;
+          border-radius: 8px;
+          margin-bottom: 1.5rem;
+        "
+      >
+        {{ messages[0] }}
+      </div>
+      {% endif %} {% endwith %}
 
-            <div class="form-step">
-                 <label for="Youtube">Find on YouTube (or Upload Directly Below)</label>
-                 <div style="display: flex; gap: 0.5rem;">
-                    <input type="text" id="Youtube" placeholder="Search for a song or artist...">
-                    <button type="button" id="search-btn" class="submit-btn" style="width: auto; margin-top: 0;">Search</button>
-                 </div>
-                 <div id="Youtube-results"></div>
-                 <input type="hidden" name="youtube_url" id="youtube_url">
-            </div>
-            
-            <div class="form-step">
-                <label for="audio_file">Or Upload Audio File Directly</label>
-                <input type="file" name="audio_file" accept="audio/*">
-            </div>
+      <form
+        action="/create"
+        method="post"
+        enctype="multipart/form-data"
+        class="moment-form"
+        id="moment-form"
+      >
+        <div class="form-step">
+          <label for="title">Song Title *</label>
+          <input
+            type="text"
+            id="title"
+            name="title"
+            required
+            placeholder="e.g., Yesterday"
+          />
+        </div>
 
-            <div class="form-step">
-                <label for="lyrics_text">The Full Text / Lyrics</label>
-                <textarea name="lyrics_text" id="lyrics_text" rows="10" placeholder="Pasting lyrics here is the best way to guarantee a match..."></textarea>
-            </div>
-            <button type="submit" class="submit-btn">Create My Moment</button>
-        </form>
+        <div class="form-step">
+          <label for="Youtube"
+            >Find on YouTube (or Upload Directly Below)</label
+          >
+          <div style="display: flex; gap: 0.5rem">
+            <input
+              type="text"
+              id="Youtube"
+              placeholder="Search for a song or artist..."
+            />
+            <button
+              type="button"
+              id="search-btn"
+              class="submit-btn"
+              style="width: auto; margin-top: 0"
+            >
+              Search
+            </button>
+          </div>
+          <div id="youtube-results"></div>
+          <input type="hidden" name="youtube_url" id="youtube_url" />
+        </div>
+
+        <div class="form-step">
+          <label>Or Upload Audio File</label>
+          <div class="file-upload-wrapper">
+            <label for="audio_file" class="file-upload-button"
+              >Choose File</label
+            >
+            <span id="file-name" class="file-name-display">No file chosen</span>
+            <input
+              type="file"
+              name="audio_file"
+              id="audio_file"
+              accept="audio/*"
+            />
+          </div>
+        </div>
+
+        <div class="form-step">
+          <label for="lyrics_text">Lyrics (Optional if found on YouTube)</label>
+          <textarea
+            name="lyrics_text"
+            id="lyrics_text"
+            rows="10"
+            placeholder="Pasting lyrics here is the best way to guarantee a perfect match..."
+          ></textarea>
+        </div>
+
+        <div class="form-step">
+          <label for="language">Audio Language (for transcription)</label>
+          <select name="language" id="language" class="language-select">
+            <option value="auto">Auto-detect</option>
+            <option value="en">English</option>
+            <option value="hi">Hindi</option>
+            <option value="pa">Punjabi</option>
+          </select>
+        </div>
+        <button type="submit" class="submit-btn">Create My Moment</button>
+      </form>
     </div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const searchBtn = document.getElementById('search-btn');
-        const searchInput = document.getElementById('Youtube');
-        const resultsContainer = document.getElementById('Youtube-results');
-        const youtubeUrlInput = document.getElementById('youtube_url');
-        const titleInput = document.getElementById('title');
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const searchBtn = document.getElementById("search-btn");
+        const searchInput = document.getElementById("Youtube");
+        const resultsContainer = document.getElementById("youtube-results");
+        const youtubeUrlInput = document.getElementById("youtube_url");
+        const titleInput = document.getElementById("title");
+        const audioFileInput = document.getElementById("audio_file");
 
         const performSearch = async () => {
-            const query = searchInput.value;
-            if (!query) return;
+          const query = searchInput.value;
+          if (!query.trim()) return;
 
-            resultsContainer.innerHTML = '<p>Searching...</p>';
+          resultsContainer.innerHTML = "<p>Searching...</p>";
+          searchBtn.disabled = true;
 
-            try {
-                const response = await fetch(`/search_youtube?q=${encodeURIComponent(query)}`);
-                const data = await response.json();
+          try {
+            const response = await fetch(
+              `/search_youtube?q=${encodeURIComponent(query)}`
+            );
+            const data = await response.json();
 
-                if (data.error) {
-                    resultsContainer.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
-                    return;
-                }
-
-                resultsContainer.innerHTML = '';
-                if (data.videos && data.videos.length > 0) {
-                    data.videos.forEach(video => {
-                        const item = document.createElement('div');
-                        item.className = 'video-result-item';
-                        item.innerHTML = `
-                            <img src="${video.thumbnail}" alt="Thumbnail">
-                            <div>
-                                <strong>${video.title}</strong>
-                                <p>${video.channel}</p>
-                            </div>
-                        `;
-                        item.addEventListener('click', () => {
-                            youtubeUrlInput.value = `https://www.youtube.com/watch?v=${video.video_id}`;
-                            if (!titleInput.value) {
-                                titleInput.value = video.title;
-                            }
-                            resultsContainer.innerHTML = `<p style="color: green; font-weight: bold;">Selected: ${video.title}</p>`;
-                        });
-                        resultsContainer.appendChild(item);
-                    });
-                } else {
-                    resultsContainer.innerHTML = '<p>No results found.</p>';
-                }
-            } catch (error) {
-                resultsContainer.innerHTML = `<p style="color: red;">A network error occurred.</p>`;
+            resultsContainer.innerHTML = "";
+            if (data.error) {
+              resultsContainer.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+              return;
             }
+
+            if (data.videos && data.videos.length > 0) {
+              data.videos.forEach((video) => {
+                const item = document.createElement("div");
+                item.className = "video-result-item";
+                item.innerHTML = `
+                        <img src="${video.thumbnail}" alt="Thumbnail">
+                        <div class="video-details">
+                            <strong>${video.title}</strong>
+                            <p>${video.channel}</p>
+                        </div>
+                    `;
+                item.addEventListener("click", () => {
+                  youtubeUrlInput.value = `https://www.youtube.com/watch?v=${video.video_id}`;
+
+                  if (!titleInput.value) {
+                    titleInput.value = video.title;
+                  }
+
+                  resultsContainer.innerHTML = "";
+                  item.classList.add("selected"); 
+                  resultsContainer.appendChild(item); 
+
+                  audioFileInput.value = "";
+                  audioFileInput.disabled = true;
+                });
+                resultsContainer.appendChild(item);
+              });
+            } else {
+              resultsContainer.innerHTML = "<p>No results found.</p>";
+            }
+          } catch (error) {
+            console.error("Search failed:", error);
+            resultsContainer.innerHTML =
+              '<p style="color: red;">A network error occurred during the search.</p>';
+          } finally {
+            searchBtn.disabled = false;
+          }
         };
 
-        searchBtn.addEventListener('click', performSearch);
-        searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                performSearch();
-            }
+        audioFileInput.addEventListener("click", () => {
+          youtubeUrlInput.value = "";
+          audioFileInput.disabled = false;
+          document
+            .querySelectorAll(".video-result-item")
+            .forEach((el) => el.classList.remove("selected"));
         });
-    });
-</script>
-</body>
+
+        searchBtn.addEventListener("click", performSearch);
+        searchInput.addEventListener("keypress", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            performSearch();
+          }
+        });
+        document
+          .getElementById("audio_file")
+          .addEventListener("change", function () {
+            var fileName = this.files[0]
+              ? this.files[0].name
+              : "No file chosen";
+            document.getElementById("file-name").textContent = fileName;
+          });
+      });
+    </script>
+  </body>
 </html>

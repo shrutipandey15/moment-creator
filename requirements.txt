@@ -31,4 +31,3 @@ urllib3==2.5.0
 websockets==15.0.1
 Werkzeug==3.1.3
 yt-dlp==2025.6.25
-gunicorn
