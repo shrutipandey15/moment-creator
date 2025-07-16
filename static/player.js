@@ -27,6 +27,10 @@ class PoemPlayer {
     this.popupLyric = document.getElementById("popup-lyric");
     this.selectionInfo = document.getElementById("selection-info");
     this.selectionCount = document.getElementById("selection-count");
+    this.personalMessagePreview = document.getElementById(
+      "personal-message-preview"
+    );
+    this.speechBubbleText = document.getElementById("speech-bubble-text");
 
     this.poemData = momentData;
     this.appBaseUrl = appBaseUrl;
@@ -36,6 +40,9 @@ class PoemPlayer {
     this.specialMoments = [];
     this.isPopupVisible = false;
     this.boundHidePopup = null;
+    this.doodlePaths = [];
+    this.hasAnimatedDoodles = false;
+    this.poemData = momentData;
 
     this.init();
   }
@@ -91,6 +98,15 @@ class PoemPlayer {
 
     this.poemLines.forEach((line, index) => {
       line.addEventListener("click", () => this.toggleLineSelection(index));
+    });
+    this.shareMessageInput.addEventListener("input", () => {
+      const message = this.shareMessageInput.value;
+      if (message.trim() !== "") {
+        this.speechBubbleText.textContent = `“${message}”`;
+        this.personalMessagePreview.style.display = "block";
+      } else {
+        this.personalMessagePreview.style.display = "none";
+      }
     });
   }
 

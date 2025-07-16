@@ -1,3 +1,7 @@
+/* =================================================================== */
+/* ===== 1. Global Styles & Setup ==================================== */
+/* =================================================================== */
+
 :root {
     --bg-color-start: #e6e1f0;
     --bg-color-end: #f3eef8;
@@ -39,6 +43,10 @@ body {
     position: relative;
 }
 
+/* =================================================================== */
+/* ===== 2. Layout & Typography ====================================== */
+/* =================================================================== */
+
 .main-container {
     width: 100%;
     max-width: 700px;
@@ -75,6 +83,65 @@ body {
     font-size: 1.5rem;
     opacity: 0.8;
 }
+
+/* =================================================================== */
+/* ===== 3. Shared Components ======================================== */
+/* =================================================================== */
+
+.submit-btn {
+    background-color: var(--button-color);
+    color: var(--button-text-color);
+    border: none;
+    border-radius: 8px;
+    padding: 0.8rem 2rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    width: 100%;
+    margin-top: 1rem;
+}
+
+.submit-btn:hover {
+    background-color: var(--text-active-color);
+    transform: scale(1.02);
+}
+
+.loader {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--text-color);
+    border-bottom-color: transparent;
+    border-radius: 50%;
+    display: inline-block;
+    animation: spin 1s linear infinite;
+    margin: 2rem auto;
+}
+
+.error-message {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background-color: rgba(253, 226, 228, 0.7);
+    color: #a33a3a;
+    padding: 1rem;
+    border-radius: 8px;
+    border: 1px solid rgba(163, 58, 58, 0.2);
+    font-weight: 600;
+    margin-top: 1rem;
+    text-align: left;
+}
+
+.error-message svg {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+    fill: currentColor;
+}
+
+/* =================================================================== */
+/* ===== 4. Page: Creator (`/create`) ================================ */
+/* =================================================================== */
 
 .moment-form {
     width: 100%;
@@ -115,25 +182,6 @@ body {
 .moment-form textarea {
     height: 120px;
     resize: vertical;
-}
-
-.submit-btn {
-    background-color: var(--button-color);
-    color: var(--button-text-color);
-    border: none;
-    border-radius: 8px;
-    padding: 0.8rem 2rem;
-    font-size: 1.1rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: background-color 0.2s, transform 0.1s;
-    width: 100%;
-    margin-top: 1rem;
-}
-
-.submit-btn:hover {
-    background-color: var(--text-active-color);
-    transform: scale(1.02);
 }
 
 .file-upload-wrapper {
@@ -202,6 +250,10 @@ body {
     box-shadow: 0 0 0 3px rgba(139, 90, 159, 0.2);
 }
 
+/* =================================================================== */
+/* ===== 5. Page: Player (`/moment`) ================================= */
+/* =================================================================== */
+
 .poem-text {
     font-family: 'Caveat', cursive;
     font-size: 1.9rem;
@@ -220,9 +272,8 @@ body {
 
 .poem-line {
     display: block;
-    /* Made the transition slightly longer and smoother */
     transition: all 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
-    opacity: 0.65; /* Lowered for a more noticeable fade-in */
+    opacity: 0.65;
     cursor: pointer;
     padding: 1.2rem 0.5rem;
     margin: 0.2rem 0;
@@ -231,8 +282,8 @@ body {
     background: transparent;
     border: none;
     border-radius: 0;
-    transform-origin: center center; /* Changed for a better scaling effect */
-    transform: translateY(8px); /* Start each line slightly lower */
+    transform-origin: center center;
+    transform: translateY(8px);
 }
 
 .poem-line:hover {
@@ -243,11 +294,9 @@ body {
 
 .poem-line.active {
     color: var(--text-active-color);
-    font-weight: 700; /* Made it slightly bolder for more emphasis */
-    /* It will now move up to its original position and scale up */
+    font-weight: 700;
     transform: translateY(0) scale(1.05);
     opacity: 1;
-    /* Removed the pulse animation for a cleaner, one-time transition */
     animation: none;
 }
 
@@ -359,6 +408,53 @@ body {
     filter: brightness(1.2);
 }
 
+/* =================================================================== */
+/* ===== 6. Components: Player UI ==================================== */
+/* =================================================================== */
+
+.about-section {
+    width: 100%;
+    max-width: 580px;
+    margin: -1rem auto 2rem auto;
+    padding: 1.2rem 1.5rem;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(139, 90, 159, 0.2);
+    text-align: center;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--text-color);
+}
+
+.about-summary a {
+    font-weight: 700;
+    color: var(--text-active-color);
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.about-summary a:hover {
+    text-decoration: underline;
+}
+
+.about-details {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: all 0.5s ease-in-out;
+    border-top: 1px solid transparent;
+    margin-top: 0;
+    padding-top: 0;
+}
+
+.about-section.expanded .about-details {
+    max-height: 500px;
+    opacity: 1;
+    border-top-color: rgba(139, 90, 159, 0.2);
+    margin-top: 1rem;
+    padding-top: 1rem;
+}
+
 .selection-info {
     position: fixed;
     bottom: 140px;
@@ -428,6 +524,10 @@ body {
     pointer-events: auto;
 }
 
+/* =================================================================== */
+/* ===== 7. Components: Modals & Popups ============================== */
+/* =================================================================== */
+
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -487,6 +587,39 @@ body {
     margin-bottom: 0.5rem;
     display: block;
     text-align: left;
+}
+
+.personal-message-preview {
+    margin-bottom: 1.5rem;
+    min-height: 50px;
+}
+
+.speech-bubble {
+    position: relative;
+    background: rgba(253, 226, 228, 0.7);
+    color: var(--text-active-color);
+    padding: 1rem 1.5rem;
+    border-radius: 16px;
+    font-family: 'Caveat', cursive;
+    font-size: 1.6rem;
+    line-height: 1.4;
+    text-align: center;
+    filter: drop-shadow(0 4px 6px rgba(93, 46, 107, 0.1));
+    transition: all 0.3s ease;
+}
+
+.speech-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border: 12px solid transparent;
+    border-top-color: rgba(253, 226, 228, 0.7);
+    border-bottom: 0;
+    margin-left: -12px;
+    margin-bottom: -12px;
 }
 
 .shared-lines-preview {
@@ -620,56 +753,93 @@ body {
 
 .moment-popup-content {
     text-align: center;
-    padding: 3rem 2.5rem;
-    max-width: 80%;
-    transform: scale(0.85) translateY(40px);
+    padding: 3rem 2.5rem 2.5rem;
+    max-width: 600px;
+    width: 90%;
+    transform: scale(0.85) rotate(5deg);
     transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 50%, rgba(255, 255, 255, 0.25) 100%);
-    backdrop-filter: blur(25px);
-    border-radius: 30px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2), 0 8px 30px rgba(139, 90, 159, 0.3), inset 0 1px 3px rgba(255, 255, 255, 0.5);
+    background: #fdfdf9;
+    border-radius: 12px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.4);
     position: relative;
-    overflow: hidden;
+    overflow: visible;
 }
 
 .moment-popup.visible .moment-popup-content {
-    transform: scale(1) translateY(0);
+    transform: scale(1) rotate(-1.5deg);
+}
+
+.moment-popup .message,
+.moment-popup .lyric {
+    font-family: 'Caveat', cursive;
+    color: var(--text-active-color);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    opacity: 0;
+    transform: translateY(15px);
 }
 
 .moment-popup .message {
-    font-family: 'Caveat', cursive;
-    font-size: 2.8rem;
+    font-size: 2.5rem;
     font-weight: 700;
-    color: #ffffff;
     margin-bottom: 1.5rem;
-    text-shadow: 0 3px 12px rgba(0, 0, 0, 0.4), 0 1px 6px rgba(255, 107, 157, 0.4);
-    animation: messageGlow 4s ease-in-out infinite;
+    transition: opacity 0.7s ease 0.4s, transform 0.7s ease 0.4s;
 }
 
 .moment-popup .lyric {
-    font-family: 'Caveat', cursive;
-    font-size: 2.2rem;
+    font-size: 1.8rem;
     font-style: italic;
-    color: #ffffff;
-    opacity: 0.95;
+    color: var(--text-color);
     line-height: 1.5;
-    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 4px rgba(255, 107, 157, 0.3);
-    max-width: 600px;
-    margin: 0 auto;
+    transition: opacity 0.7s ease 0.7s, transform 0.7s ease 0.7s;
+}
+
+.moment-popup.visible .message,
+.moment-popup.visible .lyric {
+    opacity: 1;
+    transform: translateY(0);
 }
 
 .moment-popup .dismiss-prompt {
     font-family: 'Inter', sans-serif;
-    font-size: 1rem;
-    color: rgba(255, 255, 255, 0.9);
-    opacity: 0.8;
-    margin-top: 3rem;
-    letter-spacing: 1.2px;
+    font-size: 0.8rem;
+    color: var(--text-color);
+    opacity: 0;
+    margin-top: 2.5rem;
+    letter-spacing: 0.8px;
     text-transform: uppercase;
     font-weight: 500;
-    animation: promptPulse 2.5s ease-in-out infinite;
+    transition: opacity 0.7s ease 1.2s;
 }
+
+.moment-popup.visible .dismiss-prompt {
+    opacity: 0.6;
+}
+
+.popup-signature-doodle {
+    position: absolute;
+    top: -30px;
+    left: -30px;
+    width: 80px;
+    height: 80px;
+    transform: rotate(-15deg);
+    opacity: 0;
+    transition: opacity 0.5s ease 0.2s;
+}
+
+.moment-popup.visible .popup-signature-doodle {
+    opacity: 1;
+}
+
+.popup-signature-doodle path {
+    stroke: var(--special-highlight-color);
+    stroke-width: 4;
+    fill: none;
+    transition: stroke-dashoffset 1.2s cubic-bezier(0.45, 0, 0.55, 1) 0.5s;
+}
+
+/* =================================================================== */
+/* ===== 8. Background & Animations ================================== */
+/* =================================================================== */
 
 .floating-doodle {
     position: absolute;
@@ -683,16 +853,11 @@ body {
     z-index: 0;
 }
 
-.loader {
-    width: 40px;
-    height: 40px;
-    border: 4px solid var(--text-color);
-    border-bottom-color: transparent;
-    border-radius: 50%;
-    display: inline-block;
-    animation: spin 1s linear infinite;
-    margin: 2rem auto;
+.floating-doodle path {
+    transition: stroke-dashoffset 1.5s cubic-bezier(0.45, 0, 0.55, 1);
 }
+
+/* --- Keyframe Animations --- */
 
 @keyframes spin {
     0% {
@@ -717,17 +882,6 @@ body {
 
 @keyframes fadeIn {
     to { opacity: 0.3; }
-}
-
-@keyframes activeLinePulse {
-    0%, 100% {
-        transform: translateX(12px) scale(1.03);
-        filter: brightness(1);
-    }
-    50% {
-        transform: translateX(12px) scale(1.04);
-        filter: brightness(1.1);
-    }
 }
 
 @keyframes selectedLineGlow {
@@ -766,27 +920,5 @@ body {
     50% {
         transform: translateX(-50%) scale(1.02);
         box-shadow: 0 20px 45px rgba(255, 107, 157, 0.6), 0 8px 25px rgba(0, 0, 0, 0.2), inset 0 2px 4px rgba(255, 255, 255, 0.7);
-    }
-}
-
-@keyframes messageGlow {
-    0%, 100% {
-        transform: translateY(0);
-        text-shadow: 0 3px 12px rgba(0, 0, 0, 0.4), 0 1px 6px rgba(255, 107, 157, 0.4);
-    }
-    50% {
-        transform: translateY(-8px);
-        text-shadow: 0 5px 18px rgba(0, 0, 0, 0.5), 0 2px 10px rgba(255, 107, 157, 0.6);
-    }
-}
-
-@keyframes promptPulse {
-    0%, 100% {
-        opacity: 0.8;
-        transform: translateY(0);
-    }
-    50% {
-        opacity: 1;
-        transform: translateY(-2px);
     }
 }

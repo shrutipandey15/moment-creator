@@ -1,75 +1,157 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{{ moment_data.title }}</title>
-    
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-</head>
-<body>
+
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='styles.css') }}"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
     {% include '_doodles.html' %}
-    <audio id="poemAudio" style="display: none;">
-        <source src="{{ url_for('serve_audio', filename=moment_data.audio_filename) }}" type="audio/mpeg">
-        Your browser does not support the audio element.
+    <audio id="poemAudio" style="display: none">
+      <source
+        src="{{ url_for('serve_audio', filename=moment_data.audio_filename) }}"
+        type="audio/mpeg"
+      />
+      Your browser does not support the audio element.
     </audio>
-    
+
     <div class="main-container">
-        <header class="header">
-            <h1 class="title">{{ moment_data.title }}</h1>
-            <h2 class="subtitle" id="personal-message-display"></h2>
-        </header>
+      <header class="header">
+        <h1 class="title">{{ moment_data.title }}</h1>
+        <h2 class="subtitle" id="personal-message-display"></h2>
+      </header>
 
-        <main class="poem-text">
-            </main>
+      <main class="poem-text"></main>
 
-        <div class="selection-info" id="selection-info">
-            <span id="selection-count">0 lines selected</span> • Click lines to select, then share
+      <div class="selection-info" id="selection-info">
+        <span id="selection-count">0 lines selected</span> • Click lines to
+        select, then share
+      </div>
+
+      <footer class="player-container">
+        <button
+          type="button"
+          class="play-pause-btn"
+          id="playPauseBtn"
+          aria-label="Play/Pause"
+        >
+          <svg id="playIcon" width="24" height="24" viewBox="0 0 24 24">
+            <path d="M8 5v14l11-7z"></path>
+          </svg>
+          <svg
+            id="pauseIcon"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            style="display: none"
+          >
+            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path>
+          </svg>
+        </button>
+        <div id="currentTime" class="time-display">0:00</div>
+        <div class="progress-rail" id="progressRail">
+          <div class="progress-fill" id="progressFill"></div>
         </div>
-
-        <footer class="player-container">
-            <button type="button" class="play-pause-btn" id="playPauseBtn" aria-label="Play/Pause">
-                <svg id="playIcon" width="24" height="24" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>
-                <svg id="pauseIcon" width="24" height="24" viewBox="0 0 24 24" style="display: none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg>
-            </button>
-            <div id="currentTime" class="time-display">0:00</div>
-            <div class="progress-rail" id="progressRail"><div class="progress-fill" id="progressFill"></div></div>
-            <div id="duration" class="time-display">0:00</div>
-            <button type="button" class="clear-selection-btn" id="clearSelectionBtn" title="Clear Selection">
-                <svg width="24" height="24" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
-            </button>
-            <button type="button" class="share-btn" id="shareBtn" title="Share Selection">
-                <svg width="24" height="24" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"></path></svg>
-            </button>
-        </footer>
+        <div id="duration" class="time-display">0:00</div>
+        <button
+          type="button"
+          class="clear-selection-btn"
+          id="clearSelectionBtn"
+          title="Clear Selection"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24">
+            <path
+              d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+            ></path>
+          </svg>
+        </button>
+        <button
+          type="button"
+          class="share-btn"
+          id="shareBtn"
+          title="Share Selection"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24">
+            <path
+              d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z"
+            ></path>
+          </svg>
+        </button>
+      </footer>
     </div>
-    
+
     <div class="modal-overlay" id="share-modal">
-        <div class="modal-content">
-             <button type="button" id="close-modal-btn" class="close-modal-btn" aria-label="Close">&times;</button>
-             <h3>Share Selected Lines</h3>
-             <div class="shared-lines-preview" id="shared-lines-preview"></div>
-             <label for="share-message">Add a personal message (optional):</label>
-             <input type="text" id="share-message" placeholder="This made me think of you..." class="modal-input">
-             <button type="button" id="generate-share-link-btn" class="modal-button">Generate & Copy Link</button>
-             <input type="text" id="final-link" readonly class="modal-input-readonly" title="Your shareable link">
+      <div class="modal-content">
+        <button
+          type="button"
+          id="close-modal-btn"
+          class="close-modal-btn"
+          aria-label="Close"
+        >
+          &times;
+        </button>
+        <h3>Share Selected Lines</h3>
+
+        <div
+          class="personal-message-preview"
+          id="personal-message-preview"
+          style="display: none"
+        >
+          <div class="speech-bubble" id="speech-bubble-text"></div>
         </div>
+        <div class="shared-lines-preview" id="shared-lines-preview"></div>
+        <label for="share-message">Add a personal message (optional):</label>
+        <input
+          type="text"
+          id="share-message"
+          placeholder="This made me think of you..."
+          class="modal-input"
+        />
+        <button type="button" id="generate-share-link-btn" class="modal-button">
+          Generate & Copy Link
+        </button>
+        <input
+          type="text"
+          id="final-link"
+          readonly
+          class="modal-input-readonly"
+          title="Your shareable link"
+        />
+      </div>
     </div>
 
     <div class="moment-popup" id="moment-popup">
-        <div class="moment-popup-content">
-            <div class="message" id="popup-message"></div>
-            <div class="lyric" id="popup-lyric"></div>
-            <div class="dismiss-prompt">(Click anywhere to continue)</div>
-        </div>
+      <div class="moment-popup-content">
+        <svg class="popup-signature-doodle" viewBox="0 0 100 100">
+          <path
+            d="M50,2.5L61.8,27.5L88.2,27.5L68.2,42.5L79.9,67.5L50,52.5L20.1,67.5L31.8,42.5L11.8,27.5L38.2,27.5Z"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <div class="message" id="popup-message"></div>
+        <div class="lyric" id="popup-lyric"></div>
+        <div class="dismiss-prompt">(Click anywhere to continue)</div>
+      </div>
     </div>
 
-   <script>
-        const momentData = {{ moment_data | tojson | safe }};
-        const appBaseUrl = {{ base_url | tojson | safe }};
-   </script>
-   <script src="{{ url_for('static', filename='player.js') }}"></script>
-</body>
+    <script>
+      const momentData = {{ moment_data | tojson | safe }};
+      const appBaseUrl = {{ base_url | tojson | safe }};
+    </script>
+    <script src="{{ url_for('static', filename='player.js') }}"></script>
+  </body>
 </html>

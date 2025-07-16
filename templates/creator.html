@@ -185,7 +185,11 @@
 
             resultsContainer.innerHTML = "";
             if (data.error) {
-              resultsContainer.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+              resultsContainer.innerHTML = `
+                    <div class="error-message">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"></path></svg>
+                        <span>${data.error}</span>
+                    </div>`;
               return;
             }
 
@@ -208,11 +212,15 @@
                   }
 
                   resultsContainer.innerHTML = "";
-                  item.classList.add("selected"); 
-                  resultsContainer.appendChild(item); 
+                  item.classList.add("selected");
+                  resultsContainer.appendChild(item);
 
                   audioFileInput.value = "";
                   audioFileInput.disabled = true;
+                  document.getElementById("lyrics_text").scrollIntoView({
+                    behavior: "smooth",
+                    block: "center",
+                  });
                 });
                 resultsContainer.appendChild(item);
               });
@@ -221,8 +229,11 @@
             }
           } catch (error) {
             console.error("Search failed:", error);
-            resultsContainer.innerHTML =
-              '<p style="color: red;">A network error occurred during the search.</p>';
+            resultsContainer.innerHTML = `
+                <div class="error-message">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"></path></svg>
+                        <span>A network error occurred. Please try again.</span>
+                </div>`;
           } finally {
             searchBtn.disabled = false;
           }
