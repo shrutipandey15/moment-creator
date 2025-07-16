@@ -174,7 +174,7 @@
           const query = searchInput.value;
           if (!query.trim()) return;
 
-          resultsContainer.innerHTML = "<p>Searching...</p>";
+          resultsContainer.innerHTML = '<div class="loader"></div>';
           searchBtn.disabled = true;
 
           try {
